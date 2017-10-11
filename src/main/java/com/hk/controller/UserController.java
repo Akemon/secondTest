@@ -4,23 +4,27 @@ package com.hk.controller;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.hk.bean.Message;
-import com.hk.bean.Role;
+
 import com.hk.bean.User;
 import com.hk.bean.User_Role;
 import com.hk.service.UserService;
 import com.hk.service.User_RoleService;
-import org.apache.ibatis.annotations.Param;
+
+import com.hk.util.ImageUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +40,72 @@ public class UserController {
 
 
     /**
+     * 生成验证码
+     * @param request
+     * @param response
+     * @param session
+     */
+    @RequestMapping("/getVerifyCode")
+    @ResponseBody
+    public void getVerifyCode(HttpServletRequest request, HttpServletResponse response, HttpSession session)
+    {
+        //1调用组件生成图片和验证码
+        Map<String,BufferedImage> imageMap = ImageUtil.createImage();
+        //2将验证码记录到Session,验证时要用
+        String imageCode = imageMap.keySet().iterator().next();
+        session.setAttribute("imageCode", imageCode);
+        System.out.println("===========存入session中的code:"+imageCode);
+        //3将生成的图片转换成输入流，赋值给输出属性
+        BufferedImage image = imageMap.get(imageCode);
+        InputStream imageStream;
+        try {
+        imageStream = ImageUtil.getInputStream(image);
+
+
+        OutputStream os = response.getOutputStream();  //创建输出流
+        byte[] b = new byte[1024];
+        while( imageStream.read(b)!= -1){
+            os.write(b);
+        }
+        os.flush();
+        os.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 用户登陆
+     * @param request
+     * @param session
+     * @param user
+     * @return
+     */
+    @RequestMapping("/userLogin")
+    @ResponseBody
+    public Message userLogin(HttpServletRequest request,HttpSession session,User user){
+
+        String systemCode =(String)session.getAttribute("imageCode");
+        String userInputCode =request.getParameter("numberCheck");
+        System.out.println("系统验证码："+systemCode);
+        System.out.println("用户输入验证码："+userInputCode);
+        System.out.println("用户名："+user.getLoginName());
+        System.out.println("密码："+user.getLoginPass());
+        if(!systemCode.equalsIgnoreCase(userInputCode)){
+            return Message.fail().add("codeFail","验证码输入错误");
+        }
+        //匹配用户名与密码
+        boolean flag =userService.matchUser(user);
+        if(flag) {
+            session.setAttribute("user",user.getLoginName());
+            return Message.success();
+        }else{
+            return Message.fail().add("userFail","用户名或密码错误");
+        }
+    }
+
+    /**
      * 获取所有用户信息
      * @param pageNum 页数
      * @param searchString 搜索字符串
@@ -43,7 +113,12 @@ public class UserController {
      */
     @ResponseBody
     @RequestMapping("/getAllUsers")
-    public Message getAllUsers(@RequestParam(value = "pageNum",defaultValue = "1")Integer pageNum,@RequestParam(value = "searchString",defaultValue = "")String searchString){
+    public Message getAllUsers(@RequestParam(value = "pageNum",defaultValue = "1")Integer pageNum,@RequestParam(value = "searchString",defaultValue = "")String searchString,HttpSession session){
+        //判断是否有用户登陆
+        if(session.getAttribute("user")==null){
+            return Message.fail();
+        }
+
         PageHelper.startPage(pageNum,5);
         //之后的查询即为分页查询
         List<User> userList= userService.getAllUsersWithSearch(searchString);

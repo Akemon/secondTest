@@ -73,4 +73,19 @@ public class UserService {
         if(flag!=0) return true;
         return false;
     }
+
+    /**
+     * 匹配用户名与密码
+     * @param user
+     * @return
+     */
+    public boolean matchUser(User user) {
+        UserExample userExample =new UserExample();
+        UserExample.Criteria criteria= userExample.createCriteria();
+        criteria.andLoginNameEqualTo(user.getLoginName());
+        criteria.andLoginPassEqualTo(user.getLoginPass());
+        long count =userMapper.countByExample(userExample);
+        System.out.println("count:"+count);
+        return count!=0;
+    }
 }

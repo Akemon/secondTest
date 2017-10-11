@@ -1,5 +1,5 @@
 
-    <!--获取所有用户信息 -->
+<!--获取所有用户信息 -->
     $(document).ready(function () {
         //alert("进入初始化");
         toPage(1);
@@ -12,13 +12,20 @@ function toPage(pageNum) {
         type:"POST",
         data:"pageNum="+pageNum+"&searchString="+searchString,
         success:function (result) {
-            console.log(result);
-            //显示用户信息
-            showUserMessages(result);
-            //显示分布信息
-            showSplitPageMessage(result);
-            //显示页码信息
-            showPagesMessage(result);
+            //成功获取数据
+            if(result.code==100){
+                console.log(result);
+                //显示用户信息
+                showUserMessages(result);
+                //显示分布信息
+                showSplitPageMessage(result);
+                //显示页码信息
+                showPagesMessage(result);
+            }else{
+                window.open("http://localhost:8080/Login.jsp");
+            }
+
+
         }
     })
 }
